@@ -10,24 +10,12 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Enable CORS for frontend requests
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://127.0.0.1:5173',
-  process.env.CLIENT_URL,
-].filter(Boolean);
-
+// Enable CORS for frontend requests (allows Netlify, localhost, and custom domains with credentials)
 app.use(cors({
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, postman) or matching origins
-    if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.netlify.app')) {
-      callback(null, true);
-    } else {
-      callback(null, true); // Permissive in dev/production with credentials
-    }
-  },
+  origin: true,
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }));
 
 // Request body parsers
@@ -37,11 +25,28 @@ app.use(express.urlencoded({ extended: true }));
 // Request logging in development
 app.use(morgan('dev'));
 
+// Root endpoint for Render health checks and uptime probes
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'online',
+    service: 'TaskFlow API Server',
+    message: 'Welcome to TaskFlow Supabase & Express API! 🚀',
+    endpoints: {
+      health: '/api/health',
+      tasks: '/api/tasks',
+    },
+  });
+});
+
+app.head('/', (req, res) => {
+  res.status(200).end();
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({
     status: 'online',
-    service: 'Tasks Manager API',
+    service: 'TaskFlow API Server',
     timestamp: new Date().toISOString(),
   });
 });

@@ -116,7 +116,7 @@ export const TaskProvider = ({ children }) => {
 
       if (errorMsg && (errorMsg.includes('schema cache') || errorMsg.includes('does not exist') || errorMsg.includes('PGRST205'))) {
         setIsDbReady(false);
-      } else if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
+      } else if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error') || error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
         setServerOnline(false);
         // Direct Supabase fallback scoped to user_id
         try {
@@ -184,8 +184,9 @@ export const TaskProvider = ({ children }) => {
       }
       return false;
     } catch (error) {
-      // Fallback directly to Supabase if API offline
-      if (!serverOnline && user) {
+      // Fallback directly to Supabase if API offline or timeout
+      const isOfflineOrTimeout = !serverOnline || error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || error.message?.includes('timeout');
+      if (isOfflineOrTimeout && user) {
         try {
           const { data, error: sbErr } = await supabase
             .from('tasks')
@@ -193,7 +194,7 @@ export const TaskProvider = ({ children }) => {
             .select();
 
           if (!sbErr && data) {
-            toast.success('Task created successfully via Supabase! 🎉');
+            toast.success('Task created successfully! 🎉');
             await fetchTasks();
             return true;
           }
@@ -202,7 +203,7 @@ export const TaskProvider = ({ children }) => {
         }
       }
 
-      const msg = error.response?.data?.message || 'Failed to create task';
+      const msg = error.response?.data?.message || (error.code === 'ECONNABORTED' ? 'Server is waking up. Please retry in a moment.' : 'Failed to create task');
       toast.error(`Error: ${msg}`);
       return false;
     }
