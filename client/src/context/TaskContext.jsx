@@ -220,6 +220,27 @@ export const TaskProvider = ({ children }) => {
       }
       return false;
     } catch (error) {
+      // Fallback directly to Supabase if API offline or timeout
+      const isOfflineOrTimeout = !serverOnline || error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || error.message?.includes('timeout');
+      if (isOfflineOrTimeout && user) {
+        try {
+          const { data, error: sbErr } = await supabase
+            .from('tasks')
+            .update({ ...taskData, updated_at: new Date().toISOString() })
+            .eq('id', id)
+            .eq('user_id', user.id)
+            .select();
+
+          if (!sbErr && data) {
+            toast.success('Task updated successfully! ✏️');
+            await fetchTasks();
+            return true;
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      }
+
       const msg = error.response?.data?.message || 'Failed to update task';
       toast.error(`Error: ${msg}`);
       return false;
@@ -228,29 +249,57 @@ export const TaskProvider = ({ children }) => {
 
   // Quick toggle status
   const toggleTask = async (id) => {
-    try {
-      // Optimistic update
-      setTasks((prev) =>
-        prev.map((t) => {
-          if (t.id === id) {
-            const nextCompleted = !t.is_completed;
-            return {
-              ...t,
-              is_completed: nextCompleted,
-              status: nextCompleted ? 'completed' : 'pending',
-            };
-          }
-          return t;
-        })
-      );
+    const currentTask = tasks.find((t) => t.id === id);
+    const nextCompleted = !currentTask?.is_completed;
+    const nextStatus = nextCompleted ? 'completed' : 'pending';
 
+    // Optimistic update
+    setTasks((prev) =>
+      prev.map((t) => {
+        if (t.id === id) {
+          return {
+            ...t,
+            is_completed: nextCompleted,
+            status: nextStatus,
+          };
+        }
+        return t;
+      })
+    );
+
+    try {
       const response = await taskApi.toggleTaskStatus(id);
       if (response && response.success) {
         const statusText = response.data?.is_completed ? 'completed' : 'pending';
         toast.info(`Task marked as ${statusText}!`);
         fetchStats();
+        return;
       }
     } catch (error) {
+      // Fallback directly to Supabase
+      if (user) {
+        try {
+          const { error: sbErr } = await supabase
+            .from('tasks')
+            .update({
+              is_completed: nextCompleted,
+              status: nextStatus,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+          if (!sbErr) {
+            toast.info(`Task marked as ${nextStatus}!`);
+            calculateLocalStats(
+              tasks.map((t) => (t.id === id ? { ...t, is_completed: nextCompleted, status: nextStatus } : t))
+            );
+            return;
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
       toast.error('Failed to update task status');
       fetchTasks(); // Revert on failure
     }
@@ -268,6 +317,26 @@ export const TaskProvider = ({ children }) => {
       }
       return false;
     } catch (error) {
+      // Fallback directly to Supabase
+      if (user) {
+        try {
+          const { error: sbErr } = await supabase
+            .from('tasks')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', user.id);
+
+          if (!sbErr) {
+            toast.success('Task deleted successfully! 🗑️');
+            setTasks((prev) => prev.filter((t) => t.id !== id));
+            calculateLocalStats(tasks.filter((t) => t.id !== id));
+            return true;
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
       const msg = error.response?.data?.message || 'Failed to delete task';
       toast.error(`Error: ${msg}`);
       return false;
