@@ -8,13 +8,17 @@ import {
   deleteTask,
   getTaskStats,
 } from '../controllers/taskController.js';
+import { requireAuth } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+// Apply authentication middleware to all task routes
+router.use(requireAuth);
 
 // Stats route (must come before /:id)
 router.get('/stats', getTaskStats);
 
-// Base CRUD routes
+// Base CRUD routes (all scoped to req.user.id)
 router.get('/', getAllTasks);
 router.post('/', createTask);
 router.get('/:id', getTaskById);

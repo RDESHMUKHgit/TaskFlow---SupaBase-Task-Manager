@@ -2,10 +2,13 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import { toast } from 'react-toastify';
 import { taskApi } from '../services/api';
 import { supabase } from '../utils/supabase';
+import { useAuth } from './AuthContext';
 
 const TaskContext = createContext();
 
 export const TaskProvider = ({ children }) => {
+  const { user, isAuthenticated } = useAuth();
+
   const [tasks, setTasks] = useState([]);
   const [stats, setStats] = useState({
     total: 0,
@@ -35,20 +38,57 @@ export const TaskProvider = ({ children }) => {
   const [taskToDelete, setTaskToDelete] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  // Fetch stats
+  // Calculate stats locally from tasks if backend stats fail
+  const calculateLocalStats = useCallback((taskList) => {
+    const total = taskList.length;
+    const completed = taskList.filter((t) => t.is_completed || t.status === 'completed').length;
+    const inProgress = taskList.filter((t) => t.status === 'in_progress').length;
+    const pending = taskList.filter((t) => t.status === 'pending' && !t.is_completed).length;
+    const urgent = taskList.filter((t) => t.priority === 'urgent' && !t.is_completed).length;
+    const high = taskList.filter((t) => t.priority === 'high' && !t.is_completed).length;
+    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    setStats({
+      total,
+      completed,
+      inProgress,
+      pending,
+      urgent,
+      high,
+      completionRate,
+    });
+  }, []);
+
+  // Fetch stats from backend API
   const fetchStats = useCallback(async () => {
+    if (!isAuthenticated || !user) return;
     try {
       const response = await taskApi.getStats();
       if (response && response.success) {
         setStats(response.data);
       }
     } catch (error) {
-      console.warn('Backend stats fetch failed, calculating locally if possible:', error.message);
+      console.warn('Backend stats fetch failed, will use local calculation if needed:', error.message);
     }
-  }, []);
+  }, [isAuthenticated, user]);
 
-  // Fetch tasks with current filters
+  // Fetch tasks with current filters for the authenticated user
   const fetchTasks = useCallback(async () => {
+    if (!isAuthenticated || !user) {
+      setTasks([]);
+      setStats({
+        total: 0,
+        completed: 0,
+        inProgress: 0,
+        pending: 0,
+        urgent: 0,
+        high: 0,
+        completionRate: 0,
+      });
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
       const params = {
@@ -61,11 +101,12 @@ export const TaskProvider = ({ children }) => {
       };
 
       const response = await taskApi.getTasks(params);
-      
+
       if (response && response.success) {
         setTasks(response.data || []);
         setIsDbReady(true);
         setServerOnline(true);
+        calculateLocalStats(response.data || []);
       } else {
         setTasks([]);
       }
@@ -77,9 +118,21 @@ export const TaskProvider = ({ children }) => {
         setIsDbReady(false);
       } else if (error.code === 'ERR_NETWORK' || error.message.includes('Network Error')) {
         setServerOnline(false);
-        // Direct Supabase fallback
+        // Direct Supabase fallback scoped to user_id
         try {
-          const { data, error: sbErr } = await supabase.from('tasks').select('*');
+          let query = supabase
+            .from('tasks')
+            .select('*')
+            .eq('user_id', user.id);
+
+          if (selectedStatus !== 'all') query = query.eq('status', selectedStatus);
+          if (selectedPriority !== 'all') query = query.eq('priority', selectedPriority);
+          if (selectedCategory !== 'all') query = query.eq('category', selectedCategory);
+          if (searchQuery) query = query.or(`title.ilike.%${searchQuery}%,description.ilike.%${searchQuery}%`);
+          
+          query = query.order(sortBy, { ascending: sortOrder === 'asc' });
+
+          const { data, error: sbErr } = await query;
           if (sbErr) {
             if (sbErr.code === 'PGRST205' || sbErr.message?.includes('schema cache')) {
               setIsDbReady(false);
@@ -87,6 +140,7 @@ export const TaskProvider = ({ children }) => {
           } else if (data) {
             setTasks(data);
             setIsDbReady(true);
+            calculateLocalStats(data);
           }
         } catch (e) {
           console.warn('Supabase fallback error:', e);
@@ -96,9 +150,20 @@ export const TaskProvider = ({ children }) => {
       setLoading(false);
       fetchStats();
     }
-  }, [searchQuery, selectedStatus, selectedPriority, selectedCategory, sortBy, sortOrder, fetchStats]);
+  }, [
+    isAuthenticated,
+    user,
+    searchQuery,
+    selectedStatus,
+    selectedPriority,
+    selectedCategory,
+    sortBy,
+    sortOrder,
+    calculateLocalStats,
+    fetchStats,
+  ]);
 
-  // Initial load
+  // Initial load when user changes or filters change
   useEffect(() => {
     fetchTasks();
   }, [fetchTasks]);
@@ -106,7 +171,12 @@ export const TaskProvider = ({ children }) => {
   // Create Task
   const addTask = async (taskData) => {
     try {
-      const response = await taskApi.createTask(taskData);
+      const payload = {
+        ...taskData,
+        user_id: user?.id,
+      };
+
+      const response = await taskApi.createTask(payload);
       if (response && response.success) {
         toast.success('Task created successfully! 🎉');
         await fetchTasks();
@@ -114,6 +184,24 @@ export const TaskProvider = ({ children }) => {
       }
       return false;
     } catch (error) {
+      // Fallback directly to Supabase if API offline
+      if (!serverOnline && user) {
+        try {
+          const { data, error: sbErr } = await supabase
+            .from('tasks')
+            .insert([{ ...taskData, user_id: user.id }])
+            .select();
+
+          if (!sbErr && data) {
+            toast.success('Task created successfully via Supabase! 🎉');
+            await fetchTasks();
+            return true;
+          }
+        } catch (err) {
+          console.error(err);
+        }
+      }
+
       const msg = error.response?.data?.message || 'Failed to create task';
       toast.error(`Error: ${msg}`);
       return false;

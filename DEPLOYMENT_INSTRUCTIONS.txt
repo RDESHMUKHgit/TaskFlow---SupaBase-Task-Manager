@@ -1,115 +1,113 @@
 ================================================================================
-🚀 COMPLETE DEPLOYMENT GUIDE: NETLIFY (Frontend) + RENDER (Backend)
+🚀 COMPLETE PRODUCTION DEPLOYMENT GUIDE: TASKFLOW
 ================================================================================
-Project: Tasks Manager (React + Express + Supabase)
 Stack:
-  • Database: Supabase PostgreSQL (Cloud)
+  • Database & Auth & Storage: Supabase (PostgreSQL + RLS + Storage Buckets)
   • Backend : Express.js REST API on Render (Web Service)
-  • Frontend: React 18 + Vite SPA on Netlify
-
---------------------------------------------------------------------------------
-PREREQUISITES: PUSH CODE TO GITHUB
---------------------------------------------------------------------------------
-1. Ensure your latest project files are committed and pushed to a GitHub repo:
-     git add .
-     git commit -m "Prepare for deployment"
-     git push origin main
+  • Frontend: React 18 + Vite SPA on Netlify (with React Dropzone & Theme Switcher)
 
 ================================================================================
-PART 1: DEPLOY BACKEND TO RENDER (Express.js)
+PART 1: SUPABASE CONFIGURATION (DATABASE, AUTH, STORAGE)
 ================================================================================
 
-1. Go to https://render.com and sign in with GitHub.
-2. On your Render Dashboard, click "New +" -> "Web Service".
-3. Connect your GitHub repository.
-4. Fill in the following service settings:
+1. SQL Schema & RLS Setup:
+   - Go to your Supabase Dashboard: https://supabase.com/dashboard
+   - Select your project -> Go to "SQL Editor".
+   - Copy the contents of `supabase_schema.sql` (or from the in-app Setup Guide) and click "Run".
+   - This creates:
+     • `public.users` table with auth sync trigger
+     • `public.tasks` table with foreign key `user_id` and attachment columns
+     • Table Row Level Security (RLS) policies
+     • `task-attachments` Storage Bucket (5MB max limit)
+     • Storage Row Level Security (RLS) policies
 
-   • Name: tasks-manager-api (or any name you prefer)
-   • Region: Choose the region closest to you or your Supabase instance
-   • Branch: main
-   • Root Directory: server        <--- [IMPORTANT: Set this to 'server']
+2. Supabase Auth Email Confirmation (Recommended for Testing):
+   - Go to Authentication -> Providers -> Email.
+   - Disable "Confirm email" if you want users to log in immediately without email confirmation.
+
+================================================================================
+PART 2: DEPLOY BACKEND TO RENDER (Express.js)
+================================================================================
+
+1. Sign in to https://render.com with your GitHub account.
+2. Click "New +" -> "Web Service".
+3. Connect your GitHub repository: `TaskFlow---SupaBase-Task-Manager`.
+4. Configure service settings:
+   • Name: taskflow-api (or any name)
+   • Region: Singapore / Ohio / Frankfurt (nearest to your Supabase region)
+   • Branch: feature/auth-and-storage (or main)
+   • Root Directory: server        <--- [IMPORTANT]
    • Runtime: Node
    • Build Command: npm install
    • Start Command: npm start
    • Instance Type: Free
 
-5. Environment Variables (scroll down to "Environment Variables" section):
-   Add the following keys:
-
-   KEY                | VALUE
-   -------------------|---------------------------------------------------------
-   NODE_ENV           | production
-   PORT               | 10000 (Render automatically provides or routes PORT)
-   SUPABASE_URL       | https://yzpxutumszxlgxpdajyg.supabase.co
-   SUPABASE_KEY       | sb_publishable_imKBFK22qpAYrU3s6mNgFQ_8L37XCtW
-   CLIENT_URL         | (Optional: Leave empty for now, or add your Netlify URL)
-
-6. Click "Create Web Service".
-7. Wait 2-3 minutes for Render to deploy.
-8. Once deployed, copy your Render Service URL:
-   Example: https://tasks-manager-api.onrender.com
-
-9. Test the backend in your browser:
-   Visit: https://your-render-url.onrender.com/api/health
-   You should see: {"status":"online","service":"Tasks Manager API",...}
-
-
-================================================================================
-PART 2: DEPLOY FRONTEND TO NETLIFY (React + Vite)
-================================================================================
-
-1. Go to https://app.netlify.com and sign in with GitHub.
-2. Click "Add new site" -> "Import an existing project" -> "GitHub".
-3. Select your repository.
-4. Configure the build settings:
-
-   • Base directory: client        <--- [IMPORTANT: Set this to 'client']
-   • Build command: npm run build
-   • Publish directory: dist       (or client/dist if base dir is blank)
-   • Functions directory: (leave empty)
-
-5. Environment Variables (click "Add environment variable" or under Site Configuration):
-   Add:
+5. Environment Variables:
+   Add the following environment variables in Render:
 
    KEY           | VALUE
    --------------|---------------------------------------------------------
-   VITE_API_URL  | https://your-render-url.onrender.com/api
+   NODE_ENV      | production
+   PORT          | 10000
+   SUPABASE_URL  | https://yzpxutumszxlgxpdajyg.supabase.co
+   SUPABASE_KEY  | sb_publishable_imKBFK22qpAYrU3s6mNgFQ_8L37XCtW
+   CLIENT_URL    | https://your-taskflow.netlify.app
 
-   *(Note: replace 'your-render-url' with your actual Render URL from Part 1.
-    Make sure to include '/api' at the end!)*
+6. Click "Create Web Service".
+7. Once deployed, note your backend URL:
+   Example: `https://taskflow-api.onrender.com`
+8. Verify health endpoint:
+   Visit: `https://taskflow-api.onrender.com/api/health` -> `{"status":"online",...}`
+
+================================================================================
+PART 3: DEPLOY FRONTEND TO NETLIFY (React + Vite)
+================================================================================
+
+1. Sign in to https://app.netlify.com with GitHub.
+2. Click "Add new site" -> "Import an existing project" -> "GitHub".
+3. Select your repository: `TaskFlow---SupaBase-Task-Manager`.
+4. Configure build settings:
+   • Base directory: client        <--- [IMPORTANT]
+   • Build command: npm run build
+   • Publish directory: dist
+   • Functions directory: (leave empty)
+
+5. Environment Variables:
+   Under "Site configuration" -> "Environment variables", add:
+
+   KEY                            | VALUE
+   -------------------------------|---------------------------------------------------------
+   VITE_API_URL                   | https://taskflow-api.onrender.com/api
+   VITE_SUPABASE_URL              | https://yzpxutumszxlgxpdajyg.supabase.co
+   VITE_SUPABASE_PUBLISHABLE_KEY  | sb_publishable_imKBFK22qpAYrU3s6mNgFQ_8L37XCtW
+
+   *(Note: Ensure '/api' is at the end of VITE_API_URL!)*
 
 6. Click "Deploy Site".
 7. Netlify will build and deploy your site in ~1 minute.
-8. You will receive a URL like: https://your-app-name.netlify.app
-
-
-================================================================================
-PART 3: SPA ROUTING & CORS (ALREADY CONFIGURED!)
-================================================================================
-
-✔ SPA Page Refreshes:
-  The file `client/public/_redirects` contains `/*  /index.html  200`.
-  This ensures that direct navigation and refreshing on `/tasks`, `/analytics`,
-  or `/tasks/:id` will never show a 404 on Netlify.
-
-✔ CORS Support:
-  `server/server.js` is pre-configured to accept requests from all `.netlify.app`
-  subdomains as well as custom domains.
-
+8. Your live app URL will look like: `https://your-site-name.netlify.app`
 
 ================================================================================
-PART 4: VERIFICATION CHECKLIST
+PART 4: SPA ROUTING & CORS CHECKS (PRE-CONFIGURED)
 ================================================================================
 
-[ ] 1. Supabase Schema: Make sure you ran `supabase_schema.sql` in Supabase SQL Editor.
-[ ] 2. Backend Health: https://<render-url>/api/health returns status "online".
-[ ] 3. Backend Tasks : https://<render-url>/api/tasks returns your task JSON.
-[ ] 4. Frontend App  : Open your Netlify site URL -> tasks and stats render cleanly.
-[ ] 5. CRUD Check    : Try creating a new task and toggling a status on the live site!
+✔ SPA Page Navigation:
+  `netlify.toml` and `client/public/_redirects` are already configured with
+  `/* /index.html 200` to prevent 404s when navigating or refreshing on
+  `/tasks`, `/tasks/:id`, `/analytics`, or `/auth`.
+
+✔ CORS & Auth Tokens:
+  `server/server.js` and `authMiddleware.js` automatically accept requests
+  from Netlify domains and validate user Bearer tokens.
 
 ================================================================================
-✨ NOTE ON RENDER FREE TIER SLEEP BEHAVIOR:
-Render free tier Web Services spin down after 15 minutes of inactivity.
-When you open your Netlify app after a while, the first request may take 30-50
-seconds while Render wakes up. All subsequent requests will be instant.
+PART 5: VERIFICATION CHECKLIST
+================================================================================
+
+[ ] 1. Supabase SQL: Executed `supabase_schema.sql` successfully in SQL Editor.
+[ ] 2. Render API : Health check returns {"status":"online"}.
+[ ] 3. Netlify App: Opens login/signup page with dark & light theme toggle.
+[ ] 4. Auth Test  : Create an account and log in.
+[ ] 5. Tasks Test : Create a task with null due date by default, attach photo/pdf.
+[ ] 6. Profile Pic: Upload custom avatar in User Profile Dashboard.
 ================================================================================

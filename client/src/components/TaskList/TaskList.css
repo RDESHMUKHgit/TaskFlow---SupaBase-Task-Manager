@@ -45,7 +45,7 @@
 }
 
 .skeleton {
-  background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%);
+  background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--bg-card-hover) 50%, var(--bg-secondary) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s infinite;
   border-radius: var(--radius-sm);
@@ -107,51 +107,32 @@
 .task-table td {
   padding: 1rem;
   border-bottom: 1px solid var(--border-color);
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  vertical-align: middle;
 }
 
-.task-table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.02);
+.task-table tr:hover td {
+  background: var(--bg-card-hover);
 }
 
-.task-table tbody tr.row-completed {
-  opacity: 0.65;
-}
-
-.task-table tbody tr.row-completed .table-task-title {
-  text-decoration: line-through;
+.table-title-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .table-task-title {
   font-weight: 600;
-  color: var(--text-primary);
   cursor: pointer;
-  margin-bottom: 0.2rem;
+  transition: color var(--transition-fast);
 }
 
 .table-task-title:hover {
-  color: #818cf8;
-}
-
-.table-task-desc {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-  max-width: 320px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.table-due-date {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: 0.82rem;
+  color: var(--accent-primary);
 }
 
 .table-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 0.35rem;
 }

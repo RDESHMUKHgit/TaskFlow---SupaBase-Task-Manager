@@ -1,5 +1,5 @@
 :root {
-  /* Core Color Palette - Sleek Modern Dark Aesthetics */
+  /* Core Color Palette - Sleek Modern Dark Aesthetics (Default) */
   --bg-primary: #0f172a;
   --bg-secondary: #1e293b;
   --bg-card: rgba(30, 41, 59, 0.75);
@@ -66,4 +66,50 @@
   /* Transitions */
   --transition-fast: 0.15s ease;
   --transition-normal: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Light Theme Overrides */
+:root[data-theme="light"],
+[data-theme="light"] {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-card: rgba(255, 255, 255, 0.95);
+  --bg-card-hover: rgba(248, 250, 252, 0.98);
+  --bg-input: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.85);
+
+  --border-color: rgba(0, 0, 0, 0.12);
+  --border-focus: rgba(99, 102, 241, 0.7);
+  --border-hover: rgba(0, 0, 0, 0.22);
+
+  --text-primary: #020617; /* Crystal clear high-contrast dark text */
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-inverse: #ffffff;
+
+  --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.09), 0 2px 4px -1px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-glow: 0 0 16px rgba(99, 102, 241, 0.25);
+
+  --status-pending-bg: rgba(245, 158, 11, 0.15);
+  --status-pending-text: #b45309;
+
+  --status-progress-bg: rgba(59, 130, 246, 0.15);
+  --status-progress-text: #1d4ed8;
+
+  --status-completed-bg: rgba(16, 185, 129, 0.15);
+  --status-completed-text: #047857;
+
+  --priority-low-bg: rgba(100, 116, 139, 0.12);
+  --priority-low-text: #334155;
+
+  --priority-medium-bg: rgba(59, 130, 246, 0.12);
+  --priority-medium-text: #1d4ed8;
+
+  --priority-high-bg: rgba(249, 115, 22, 0.12);
+  --priority-high-text: #c2410c;
+
+  --priority-urgent-bg: rgba(239, 68, 68, 0.12);
+  --priority-urgent-text: #b91c1c;
 }

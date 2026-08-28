@@ -10,10 +10,16 @@ import {
   FiTag,
   FiFlag,
   FiLayers,
+  FiPaperclip,
+  FiExternalLink,
+  FiDownload,
+  FiFileText,
+  FiImage,
 } from 'react-icons/fi';
 import { taskApi } from '../../services/api';
 import { useTaskContext } from '../../context/TaskContext';
 import { formatDate } from '../../utils/dateFormatter';
+import { formatFileSize } from '../../services/storageService';
 import './TaskDetails.css';
 
 export default function TaskDetails() {
@@ -79,6 +85,9 @@ export default function TaskDetails() {
   }
 
   const isCompleted = task.is_completed || task.status === 'completed';
+  const hasAttachment = Boolean(task.attachment_url);
+  const isImage = task.attachment_type === 'image';
+  const isPdf = task.attachment_type === 'pdf';
 
   return (
     <div className="task-details-page animate-fade-in">
@@ -139,6 +148,96 @@ export default function TaskDetails() {
             {task.description || 'No description provided for this task.'}
           </p>
         </div>
+
+        {/* Dedicated Attachment Section */}
+        {hasAttachment && (
+          <div className="details-attachment-section">
+            <div className="attachment-section-header">
+              <h3 className="section-subtitle">
+                <FiPaperclip size={14} /> Attachment
+              </h3>
+              {task.attachment_size && (
+                <span className="attachment-size-badge">
+                  {formatFileSize(task.attachment_size)}
+                </span>
+              )}
+            </div>
+
+            {isImage && (
+              <div className="details-image-container glass-card">
+                <div className="image-preview-large-wrapper">
+                  <a
+                    href={task.attachment_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="Click to view full image"
+                  >
+                    <img
+                      src={task.attachment_url}
+                      alt={task.attachment_name || 'Task Attachment'}
+                      className="details-image-preview"
+                    />
+                  </a>
+                </div>
+
+                <div className="details-attachment-footer">
+                  <div className="attachment-meta">
+                    <span className="attachment-file-name">
+                      <FiImage size={14} /> {task.attachment_name || 'Attached Photo'}
+                    </span>
+                  </div>
+                  <a
+                    href={task.attachment_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-secondary btn-sm"
+                  >
+                    <FiExternalLink size={14} />
+                    <span>Open Full Image</span>
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {isPdf && (
+              <div className="details-pdf-container glass-card">
+                <div className="pdf-details-header">
+                  <div className="pdf-big-icon">
+                    <FiFileText size={32} />
+                  </div>
+                  <div className="pdf-details-info">
+                    <h4 className="pdf-filename">{task.attachment_name || 'Document.pdf'}</h4>
+                    <span className="pdf-type-label">
+                      Adobe PDF Document • {formatFileSize(task.attachment_size)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="pdf-details-actions">
+                  <a
+                    href={task.attachment_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-primary"
+                  >
+                    <FiExternalLink size={16} />
+                    <span>Open / View PDF</span>
+                  </a>
+                  <a
+                    href={task.attachment_url}
+                    download={task.attachment_name || 'document.pdf'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn btn-secondary"
+                  >
+                    <FiDownload size={16} />
+                    <span>Download</span>
+                  </a>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Metadata Grid */}
         <div className="metadata-grid">
